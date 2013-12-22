@@ -423,6 +423,8 @@ void loop() {
                 lcd->setCursor(12,0);
                 lcd->print("Time");
                 last_time = millis();
+                RGB.control(true);
+                RGB.color(0, 0, 0);
             }
             revs++;
             distance += revs_per_mile;
@@ -436,6 +438,7 @@ void loop() {
             lcd->clear();
             lcd->setCursor(0,0);
             lcd->print(" Workout Paused");
+            RGB.control(false);
         } else {
             duration += millis() - last_time;
             last_time = millis();
