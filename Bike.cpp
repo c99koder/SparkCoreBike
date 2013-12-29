@@ -387,7 +387,8 @@ Adafruit_CharacterOLED *lcd;
 int value = LOW;
 int revs = 0;
 int started = 0;
-double distance = 0.0f;
+double distance = 0.0;
+char dist_str[100];
 unsigned long last_time = 0;
 int duration = 0;
 unsigned long last_update = 0;
@@ -395,8 +396,9 @@ unsigned long last_rev = 0;
 float revs_per_mile = 1.0f/360.0f;
 
 void setup() {
-    Spark.variable("distance", &distance, DOUBLE);
+    Spark.variable("distance", &dist_str, STRING);
     Spark.variable("duration", &duration, INT);
+    Spark.function("clear", clear);
     lcd = new Adafruit_CharacterOLED(D0, D1, D2, D3, D4, D5, D6);
     
     pinMode(A5, INPUT);
@@ -406,7 +408,25 @@ void setup() {
     lcd->print(" Start Pedaling!");
 }
 
+int clear(String args) {
+    revs = 0;
+    started = 0;
+    distance = 0.0;
+    dist_str[0]='\0';
+    last_time = 0;
+    duration = 0;
+    last_update = 0;
+    last_rev = 0;
+    lcd->clear();
+    lcd->setCursor(0,0);
+    lcd->print("     Ready?");
+    lcd->setCursor(0,1);
+    lcd->print(" Start Pedaling!");
+    return 1;
+}
+
 void loop() {
+    sprintf(dist_str, "%.2f", distance);
     char buf[16];
     int v = analogRead(A5);
     if(v < 4000)
