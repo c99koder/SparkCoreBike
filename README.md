@@ -9,4 +9,5 @@ Uses an Adafruit OLED on pins D0 - D6 for output, see http://www.adafruit.com/pr
 
 Senses revolutions on pin A5
 
-![](https://lh4.googleusercontent.com/-6Aj0Ds9q7VI/UrD_VIHPFmI/AAAAAAAASu8/Ra4ARWHBo2g/w426-h757/IMG_20131217_174018693.jpg)
+![](https://lh4.googleusercontent.com/-6HXn5PqvmZ4/UsCSZ0Hg7YI/AAAAAAAATME/xtwLL9tTKs0/w1465-h825-no/IMG_20131229_130634913.jpg)
+![](https://lh3.googleusercontent.com/-GOG9_vNGZbg/UsCSYK4PVXI/AAAAAAAATL8/5b6HEL6R0nU/w700-h355-no/Screenshot+2013-12-29+13.18.59.png)
