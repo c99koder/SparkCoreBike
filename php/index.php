@@ -63,7 +63,7 @@ if ($_GET['code']) {
 	$v = spark_variable($rkAPI->api_conf->Spark->device_id, $rkAPI->api_conf->Spark->access_token, "distance");
 	if($v && isset($v->result)) {
 		$distance = doubleval($v->TEMPORARY_allTypes->string);
-		echo "<b>Distance</b>: $distance<br/>";
+		echo "<b>Distance</b>: $distance miles<br/>";
 	} else {
 		print_r($v);
 		exit();
@@ -71,12 +71,16 @@ if ($_GET['code']) {
 	$v = spark_variable($rkAPI->api_conf->Spark->device_id, $rkAPI->api_conf->Spark->access_token, "duration");
 	if($v && isset($v->result)) {
 		$duration = $v->TEMPORARY_allTypes->uint32 / 1000;
-		echo "<b>Duration</b>: $duration<br/>";
+		$minutes = (int)($duration / 60);
+		$seconds = $duration % 60;
+		if($seconds < 10)
+			$seconds = "0" . $seconds;
+		echo "<b>Duration</b>: $minutes:$seconds<br/>";
 	} else {
 		print_r($v);
 		exit();
 	}
-	$fields = json_decode('{"type": "Cycling", "equipment": "Stationary Bike", "start_time": "'.date(DATE_RFC822).'", "total_distance": '.$distance.', "duration": '.$duration.', "post_to_facebook": false, "post_to_twitter": false}');
+	$fields = json_decode('{"type": "Cycling", "equipment": "Stationary Bike", "start_time": "'.date(DATE_RFC822).'", "total_distance": '.($distance * 1609.34).', "duration": '.$duration.', "post_to_facebook": false, "post_to_twitter": false}');
 	$rkCreateActivity = $rkAPI->doRunkeeperRequest('NewFitnessActivity','Create',$fields);
 	if ($rkCreateActivity) {
 		echo "<b>Calories burned</b>: $rkCreateActivity->total_calories<br/>";
