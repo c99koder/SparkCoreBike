@@ -80,7 +80,7 @@ if ($_GET['code']) {
 		print_r($v);
 		exit();
 	}
-	$fields = json_decode('{"type": "Cycling", "equipment": "Stationary Bike", "start_time": "'.date(DATE_RFC822).'", "total_distance": '.($distance * 1609.34).', "duration": '.$duration.', "post_to_facebook": false, "post_to_twitter": false}');
+	$fields = json_decode('{"type": "Cycling", "equipment": "Stationary Bike", "start_time": "'.date(DATE_RFC1123).'", "total_distance": '.($distance * 1609.34).', "duration": '.$duration.', "post_to_facebook": false, "post_to_twitter": false}');
 	$rkCreateActivity = $rkAPI->doRunkeeperRequest('NewFitnessActivity','Create',$fields);
 	if ($rkCreateActivity) {
 		echo "<b>Calories burned</b>: $rkCreateActivity->total_calories<br/>";
