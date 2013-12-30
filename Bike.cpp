@@ -183,6 +183,8 @@ void Adafruit_CharacterOLED::begin(uint8_t cols, uint8_t lines)
 
   write4bits(0x03);  // Missing step from doc. Thanks to Elco Jacobs
   delayMicroseconds(5000);
+  write4bits(0x08);
+  delayMicroseconds(5000);
   write4bits(0x02);
   delayMicroseconds(5000);
   write4bits(0x02);
