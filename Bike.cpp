@@ -13,6 +13,10 @@
 #include <string.h>
 #include <inttypes.h>
 
+// OLED hardware versions
+#define OLED_V1 0x01
+#define OLED_V2 0x02
+
 // commands
 #define LCD_CLEARDISPLAY 0x01
 #define LCD_RETURNHOME 0x02
@@ -54,10 +58,10 @@
 
 class Adafruit_CharacterOLED : public Print {
 public:
-  Adafruit_CharacterOLED(uint8_t rs, uint8_t rw, uint8_t enable,
+  Adafruit_CharacterOLED(uint8_t ver, uint8_t rs, uint8_t rw, uint8_t enable,
 		uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7);
   
-  void init(uint8_t rs, uint8_t rw, uint8_t enable,
+  void init(uint8_t ver, uint8_t rs, uint8_t rw, uint8_t enable,
 	    uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7);
     
   void begin(uint8_t cols, uint8_t rows);
@@ -89,6 +93,7 @@ private:
   void pulseEnable();
   void waitForReady();
 
+  uint8_t _oled_ver; // OLED_V1 = older, OLED_V2 = newer hardware version.
   uint8_t _rs_pin; // LOW: command.  HIGH: character.
   uint8_t _rw_pin; // LOW: write to LCD.  HIGH: read from LCD.
   uint8_t _enable_pin; // activated by a HIGH pulse.
@@ -110,29 +115,33 @@ private:
 //    N="0": 1-line display
 //    F="0": 5 x 8 dot character font
 // 3. Power turn off
-//    PWR=”0”
+//    PWR=�0�
 // 4. Display on/off control: D="0": Display off C="0": Cursor off B="0": Blinking off
 // 5. Entry mode set
 //    I/D="1": Increment by 1
 //    S="0": No shift
 // 6. Cursor/Display shift/Mode / Pwr
-//    S/C=”0”, R/L=”1”: Shifts cursor position to the right
-//    G/C=”0”: Character mode
-//    Pwr=”1”: Internal DCDC power on
+//    S/C=�0�, R/L=�1�: Shifts cursor position to the right
+//    G/C=�0�: Character mode
+//    Pwr=�1�: Internal DCDC power on
 //
 // Note, however, that resetting the Arduino doesn't reset the LCD, so we
 // can't assume that its in that state when a sketch starts (and the
 // LiquidCrystal constructor is called).
 
-Adafruit_CharacterOLED::Adafruit_CharacterOLED(uint8_t rs, uint8_t rw, uint8_t enable,
+Adafruit_CharacterOLED::Adafruit_CharacterOLED(uint8_t ver, uint8_t rs, uint8_t rw, uint8_t enable,
 			     uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7)
 {
-  init(rs, rw, enable, d4, d5, d6, d7);
+  init(ver, rs, rw, enable, d4, d5, d6, d7);
 }
 
-void Adafruit_CharacterOLED::init(uint8_t rs, uint8_t rw, uint8_t enable,
+void Adafruit_CharacterOLED::init(uint8_t ver, uint8_t rs, uint8_t rw, uint8_t enable,
 			 uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7)
 {
+  _oled_ver = ver;
+  if(_oled_ver != OLED_V1 && _oled_ver != OLED_V2) {
+    _oled_ver = OLED_V2; // if error, default to newer version
+  }
   _rs_pin = rs;
   _rw_pin = rw;
   _enable_pin = enable;
@@ -174,23 +183,25 @@ void Adafruit_CharacterOLED::begin(uint8_t cols, uint8_t lines)
   }
 
   // Initialization sequence is not quite as documented by Winstar.
-  // Documented sequence only works on initial power-up.  An additional
-  // step is required to handle a warm-restart.
+  // Documented sequence only works on initial power-up.  
+  // An additional step of putting back into 8-bit mode first is 
+  // required to handle a warm-restart.
   //
   // In the data sheet, the timing specs are all zeros(!).  These have been tested to 
-  // reliably handle both warm & cold starts
-  //
+  // reliably handle both warm & cold starts.
 
-  write4bits(0x03);  // Missing step from doc. Thanks to Elco Jacobs
+  // 4-Bit initialization sequence from Technobly
+  write4bits(0x03); // Put back into 8-bit mode
   delayMicroseconds(5000);
-  write4bits(0x08);
+  if(_oled_ver == OLED_V2) {  // only run extra command for newer displays
+    write4bits(0x08);
+    delayMicroseconds(5000);
+  }
+  write4bits(0x02); // Put into 4-bit mode
   delayMicroseconds(5000);
   write4bits(0x02);
   delayMicroseconds(5000);
-  write4bits(0x02);
-  delayMicroseconds(5000);
   write4bits(0x08);
-   
   delayMicroseconds(5000);
   
   command(0x08);	// Turn Off
@@ -386,28 +397,42 @@ void Adafruit_CharacterOLED::waitForReady(void)
 }
 
 Adafruit_CharacterOLED *lcd;
-int value = LOW;
-int revs = 0;
-int started = 0;
-double distance = 0.0;
+volatile int revs = 0;
+volatile int started = 0;
+volatile double distance = 0.0;
+volatile unsigned long last_rev = 0;
 char dist_str[100];
 unsigned long last_time = 0;
 int duration = 0;
 unsigned long last_update = 0;
-unsigned long last_rev = 0;
 float revs_per_mile = 1.0f/360.0f;
 
 void setup() {
     Spark.variable("distance", &dist_str, STRING);
     Spark.variable("duration", &duration, INT);
     Spark.function("clear", clear);
-    lcd = new Adafruit_CharacterOLED(D0, D1, D2, D3, D4, D5, D6);
+    lcd = new Adafruit_CharacterOLED(OLED_V2, D0, D1, D2, D3, D4, D5, D6);
     
     pinMode(A5, INPUT);
-    lcd->setCursor(0,0);
-    lcd->print("     Ready?");
-    lcd->setCursor(0,1);
-    lcd->print(" Start Pedaling!");
+    clear("");
+    attachInterrupt(A5, pedal, RISING);
+}
+
+void pedal() {
+    if(started != 1) {
+        started = 1;
+        lcd->clear();
+        lcd->setCursor(0,0);
+        lcd->print("Distance");
+        lcd->setCursor(12,0);
+        lcd->print("Time");
+        last_time = millis();
+        RGB.control(true);
+        RGB.color(0, 0, 0);
+    }
+    revs++;
+    distance += revs_per_mile;
+    last_rev = millis();
 }
 
 int clear(String args) {
@@ -421,7 +446,7 @@ int clear(String args) {
     last_rev = 0;
     lcd->clear();
     lcd->setCursor(0,0);
-    lcd->print("     Ready?");
+    lcd->print("     Ready??");
     lcd->setCursor(0,1);
     lcd->print(" Start Pedaling!");
     return 1;
@@ -430,30 +455,6 @@ int clear(String args) {
 void loop() {
     sprintf(dist_str, "%.2f", distance);
     char buf[16];
-    int v = analogRead(A5);
-    if(v < 4000)
-        v = LOW;
-    else
-        v = HIGH;
-    if(v != value) {
-        if(value == HIGH) {
-            if(started != 1) {
-                started = 1;
-                lcd->clear();
-                lcd->setCursor(0,0);
-                lcd->print("Distance");
-                lcd->setCursor(12,0);
-                lcd->print("Time");
-                last_time = millis();
-                RGB.control(true);
-                RGB.color(0, 0, 0);
-            }
-            revs++;
-            distance += revs_per_mile;
-            last_rev = millis();
-        }
-        value = v;
-    }
     if(started == 1) {
         if(millis() - last_rev > 3000) {
             started = 2;
