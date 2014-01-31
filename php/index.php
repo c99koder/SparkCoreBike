@@ -62,7 +62,7 @@ if ($_GET['code']) {
 	$duration = 0;
 	$v = spark_variable($rkAPI->api_conf->Spark->device_id, $rkAPI->api_conf->Spark->access_token, "distance");
 	if($v && isset($v->result)) {
-		$distance = doubleval($v->TEMPORARY_allTypes->string);
+		$distance = doubleval($v->result);
 		echo "<b>Distance</b>: $distance miles<br/>";
 	} else {
 		print_r($v);
@@ -70,7 +70,7 @@ if ($_GET['code']) {
 	}
 	$v = spark_variable($rkAPI->api_conf->Spark->device_id, $rkAPI->api_conf->Spark->access_token, "duration");
 	if($v && isset($v->result)) {
-		$duration = $v->TEMPORARY_allTypes->uint32 / 1000;
+		$duration = $v->result / 1000;
 		$minutes = (int)($duration / 60);
 		$seconds = $duration % 60;
 		if($seconds < 10)
