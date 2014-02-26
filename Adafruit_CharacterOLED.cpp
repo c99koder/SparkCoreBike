@@ -1,112 +1,14 @@
-// A cycle computer for Spark Core
-// Exposes variables "duration" and "distance" via the cloud API
-
-// Uses an Adafruit OLED on pins D0 - D6 for output, see http://www.adafruit.com/products/823
-// Senses revolutions on pin A5
-
-// Adafruit OLED library: https://github.com/ladyada/Adafruit_CharacterOLED
 // Derived from LiquidCrystal by David Mellis
 // With portions adapted from Elco Jacobs OLEDFourBit
 // Modified for 4-bit operation of the Winstar 16x2 Character OLED
 // By W. Earl for Adafruit - 6/30/12
+// Initialization sequence fixed by Technobly - 9/22/2013
+
+#include "Adafruit_CharacterOLED.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-
-// OLED hardware versions
-#define OLED_V1 0x01
-#define OLED_V2 0x02
-
-// commands
-#define LCD_CLEARDISPLAY 0x01
-#define LCD_RETURNHOME 0x02
-#define LCD_ENTRYMODESET 0x04
-#define LCD_DISPLAYCONTROL 0x08
-#define LCD_CURSORSHIFT 0x10
-#define LCD_FUNCTIONSET 0x28
-#define LCD_SETCGRAMADDR 0x40
-#define LCD_SETDDRAMADDR 0x80
-
-// flags for display entry mode
-#define LCD_ENTRYRIGHT 0x00
-#define LCD_ENTRYLEFT 0x02
-#define LCD_ENTRYSHIFTINCREMENT 0x01
-#define LCD_ENTRYSHIFTDECREMENT 0x00
-
-// flags for display on/off control
-#define LCD_DISPLAYON 0x04
-#define LCD_DISPLAYOFF 0x00
-#define LCD_CURSORON 0x02
-#define LCD_CURSOROFF 0x00
-#define LCD_BLINKON 0x01
-#define LCD_BLINKOFF 0x00
-
-// flags for display/cursor shift
-#define LCD_DISPLAYMOVE 0x08
-#define LCD_CURSORMOVE 0x00
-#define LCD_MOVERIGHT 0x04
-#define LCD_MOVELEFT 0x00
-
-// flags for function set
-#define LCD_8BITMODE    0x10
-#define LCD_4BITMODE    0x00
-#define LCD_JAPANESE    0x00
-#define LCD_EUROPEAN_I  0x01
-#define LCD_RUSSIAN     0x02
-#define LCD_EUROPEAN_II 0x03
-
-
-class Adafruit_CharacterOLED : public Print {
-public:
-  Adafruit_CharacterOLED(uint8_t ver, uint8_t rs, uint8_t rw, uint8_t enable,
-		uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7);
-  
-  void init(uint8_t ver, uint8_t rs, uint8_t rw, uint8_t enable,
-	    uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7);
-    
-  void begin(uint8_t cols, uint8_t rows);
-
-  void clear();
-  void home();
-
-  void noDisplay();
-  void display();
-  void noBlink();
-  void blink();
-  void noCursor();
-  void cursor();
-  void scrollDisplayLeft();
-  void scrollDisplayRight();
-  void leftToRight();
-  void rightToLeft();
-  void autoscroll();
-  void noAutoscroll();
-
-  void createChar(uint8_t, uint8_t[]);
-  void setCursor(uint8_t, uint8_t); 
-  virtual size_t write(uint8_t);
-  void command(uint8_t);
-  
-private:
-  void send(uint8_t, uint8_t);
-  void write4bits(uint8_t);
-  void pulseEnable();
-  void waitForReady();
-
-  uint8_t _oled_ver; // OLED_V1 = older, OLED_V2 = newer hardware version.
-  uint8_t _rs_pin; // LOW: command.  HIGH: character.
-  uint8_t _rw_pin; // LOW: write to LCD.  HIGH: read from LCD.
-  uint8_t _enable_pin; // activated by a HIGH pulse.
-  uint8_t _busy_pin;   // HIGH means not ready for next command
-  uint8_t _data_pins[4];
-
-  uint8_t _displayfunction;
-  uint8_t _displaycontrol;
-  uint8_t _displaymode;
-  uint8_t _initialized;
-  uint8_t _currline;
-  uint8_t _numlines;
-};
 
 // On power up, the display is initilaized as:
 // 1. Display clear
@@ -115,15 +17,15 @@ private:
 //    N="0": 1-line display
 //    F="0": 5 x 8 dot character font
 // 3. Power turn off
-//    PWR=�0�
+//    PWR=”0”
 // 4. Display on/off control: D="0": Display off C="0": Cursor off B="0": Blinking off
 // 5. Entry mode set
 //    I/D="1": Increment by 1
 //    S="0": No shift
 // 6. Cursor/Display shift/Mode / Pwr
-//    S/C=�0�, R/L=�1�: Shifts cursor position to the right
-//    G/C=�0�: Character mode
-//    Pwr=�1�: Internal DCDC power on
+//    S/C=”0”, R/L=”1”: Shifts cursor position to the right
+//    G/C=”0”: Character mode
+//    Pwr=”1”: Internal DCDC power on
 //
 // Note, however, that resetting the Arduino doesn't reset the LCD, so we
 // can't assume that its in that state when a sketch starts (and the
@@ -338,7 +240,6 @@ inline size_t Adafruit_CharacterOLED::write(uint8_t value)
 {
   send(value, HIGH);
   waitForReady();
-  return 0;
 }
 
 /************ low level data pushing commands **********/
@@ -395,85 +296,3 @@ void Adafruit_CharacterOLED::waitForReady(void)
   pinMode(_busy_pin, OUTPUT);
   digitalWrite(_rw_pin, LOW);
 }
-
-Adafruit_CharacterOLED *lcd;
-volatile int revs = 0;
-volatile int started = 0;
-volatile double distance = 0.0;
-volatile unsigned long last_rev = 0;
-char dist_str[100];
-unsigned long last_time = 0;
-int duration = 0;
-unsigned long last_update = 0;
-float revs_per_mile = 1.0f/360.0f;
-
-void setup() {
-    Spark.variable("distance", &dist_str, STRING);
-    Spark.variable("duration", &duration, INT);
-    Spark.function("clear", clear);
-    lcd = new Adafruit_CharacterOLED(OLED_V2, D0, D1, D2, D3, D4, D5, D6);
-    
-    pinMode(A5, INPUT);
-    clear("");
-    attachInterrupt(A5, pedal, RISING);
-}
-
-void pedal() {
-    if(started != 1) {
-        started = 1;
-        lcd->clear();
-        lcd->setCursor(0,0);
-        lcd->print("Distance");
-        lcd->setCursor(12,0);
-        lcd->print("Time");
-        last_time = millis();
-        RGB.control(true);
-        RGB.color(0, 0, 0);
-    }
-    revs++;
-    distance += revs_per_mile;
-    last_rev = millis();
-}
-
-int clear(String args) {
-    revs = 0;
-    started = 0;
-    distance = 0.0;
-    dist_str[0]='\0';
-    last_time = 0;
-    duration = 0;
-    last_update = 0;
-    last_rev = 0;
-    lcd->clear();
-    lcd->setCursor(0,0);
-    lcd->print("     Ready??");
-    lcd->setCursor(0,1);
-    lcd->print(" Start Pedaling!");
-    return 1;
-}
-
-void loop() {
-    sprintf(dist_str, "%.2f", distance);
-    char buf[16];
-    if(started == 1) {
-        if(millis() - last_rev > 3000) {
-            started = 2;
-            lcd->clear();
-            lcd->setCursor(0,0);
-            lcd->print(" Workout Paused");
-            RGB.control(false);
-        } else {
-            duration += millis() - last_time;
-            last_time = millis();
-        }
-    }
-   if(started > 0 && (millis() - last_update) > 250) {
-        sprintf(buf, " %.2f mi", distance);
-        lcd->setCursor(0,1);
-        lcd->print(buf);
-        sprintf(buf, "%2i:%02i", (duration / 60000), (duration / 1000) % 60);
-        lcd->setCursor(11,1);
-        lcd->print(buf);
-        last_update = millis();
-    }
- }
