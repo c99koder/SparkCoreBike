@@ -11,7 +11,7 @@ Senses revolutions on pin A5 by counting how many times per second the circuit i
 
 Circuit Diagram
 ===============
-![](https://raw2.github.com/c99koder/SparkCoreBike/master/SparkCoreBike.png)
+![](https://raw.githubusercontent.com/c99koder/SparkCoreBike/master/SparkCoreBike.png)
 
 Action Shots
 ============
